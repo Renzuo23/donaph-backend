@@ -1,10 +1,9 @@
 <?php
-// Suppress warning output from breaking JSON headers
 ini_set('display_errors', 0);
 error_reporting(0);
 
 $host = "mysql-be91e57-donaph.g.aivencloud.com";
-$port = "17537";
+$port = "17533"; // Updated port from your Aiven dashboard
 $username = "avnadmin";
 $password = getenv('DB_PASSWORD');
 $dbname = "defaultdb";
