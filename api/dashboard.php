@@ -1,9 +1,8 @@
 <?php
 header('Content-Type: application/json');
-include 'db.php'; // Your database connection file
+include 'db.php'; // Now returns a PDO instance
 
 $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
-
 $response = array();
 
 if ($user_id <= 0) {
@@ -11,32 +10,23 @@ if ($user_id <= 0) {
     exit();
 }
 
-// 1. Calculate Total Donations dynamically for THIS specific user
-$donationQuery = "SELECT SUM(amount) as total FROM given_donations WHERE user_id = ?";
-$stmt = $conn->prepare($donationQuery);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$donationResult = $stmt->get_result();
-$donationRow = $donationResult->fetch_assoc();
+// 1. Total Donations
+$stmt = $conn->prepare("SELECT SUM(amount) as total FROM given_donations WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$donationRow = $stmt->fetch();
 $totalAmount = $donationRow['total'] ? $donationRow['total'] : 0;
 $formattedDonation = "₱" . number_format($totalAmount, 2);
 
-// 2. Calculate User Impact dynamically (e.g., count how many unique charities or communities they helped)
-$impactQuery = "SELECT COUNT(DISTINCT charity_id) as communities FROM given_donations WHERE user_id = ?";
-$stmtImpact = $conn->prepare($impactQuery);
-$stmtImpact->bind_param("i", $user_id);
-$stmtImpact->execute();
-$impactResult = $stmtImpact->get_result();
-$impactRow = $impactResult->fetch_assoc();
+// 2. User Impact
+$stmtImpact = $conn->prepare("SELECT COUNT(DISTINCT charity_id) as communities FROM given_donations WHERE user_id = ?");
+$stmtImpact->execute([$user_id]);
+$impactRow = $stmtImpact->fetch();
 $communitiesCount = $impactRow['communities'] ? $impactRow['communities'] : 0;
 $formattedImpact = "Helped " . $communitiesCount . " Communities";
 
-// 3. Fetch Ongoing Campaigns from the campaigns table
-$campaigns = array();
+// 3. Campaigns
 $campResult = $conn->query("SELECT title, raised, goal, progress FROM campaigns");
-while($row = $campResult->fetch_assoc()) {
-    $campaigns[] = $row;
-}
+$campaigns = $campResult->fetchAll();
 
 $response['success'] = true;
 $response['total_donation'] = $formattedDonation;
@@ -44,5 +34,4 @@ $response['impact'] = $formattedImpact;
 $response['campaigns'] = $campaigns;
 
 echo json_encode($response);
-$conn->close();
 ?>
