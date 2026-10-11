@@ -5,7 +5,6 @@ if (!headers_sent()) {
     header('Content-Type: application/json');
 }
 
-// Ensure the request method is POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         "success" => false,
@@ -14,9 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Read raw JSON input or form data
 $input = json_decode(file_get_contents('php://input'), true);
-$email = $input['email'] ?? $_POST['email'] ?? '';
+$email = trim($input['email'] ?? $_POST['email'] ?? '');
 $password = $input['password'] ?? $_POST['password'] ?? '';
 
 if (empty($email) || empty($password)) {
@@ -28,18 +26,35 @@ if (empty($email) || empty($password)) {
 }
 
 try {
-    // Query user by email matching your table schema
     $stmt = $conn->prepare("SELECT id, full_name, email, password, role, total_donations, impact_status FROM users WHERE email = :email LIMIT 1");
     $stmt->execute([':email' => $email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Verify credentials
-    // Note: For plain-text passwords in legacy data like '123456', check direct equality.
-    // If using password_hash(), use password_verify($password, $user['password']).
-    if ($user && ($password === $user['password'] || password_verify($password, $user['password']))) {
-        // Omit sensitive password hash from response
-        unset($user['password']);
+    if (!$user) {
+        echo json_encode([
+            "success" => false,
+            "message" => "User not found."
+        ]);
+        exit;
+    }
 
+    $storedPassword = $user['password'];
+
+    // Check if password matches via password_verify (for hashes) OR direct string comparison (for legacy plaintext)
+    $isPasswordValid = false;
+    if (password_verify($password, $storedPassword)) {
+        $isPasswordValid = true;
+    } elseif ($password === $storedPassword) {
+        $isPasswordValid = true;
+        
+        // Optional: Automatically upgrade plain text password to a secure hash on successful login
+        $newHash = password_hash($password, PASSWORD_DEFAULT);
+        $updateStmt = $conn->prepare("UPDATE users SET password = :password WHERE id = :id");
+        $updateStmt->execute([':password' => $newHash, ':id' => $user['id']]);
+    }
+
+    if ($isPasswordValid) {
+        unset($user['password']); // Never return password hash
         echo json_encode([
             "success" => true,
             "message" => "Login successful",
