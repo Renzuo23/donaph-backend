@@ -16,7 +16,6 @@ try {
     ];
 
     if (file_exists($caPath)) {
-        // Modern PHP 8.x PDO SSL attribute
         $sslAttr = defined('Pdo\Mysql::ATTR_SSL_CA') ? \Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA;
         $options[$sslAttr] = $caPath;
         $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
