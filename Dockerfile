@@ -1,9 +1,9 @@
 FROM php:8.2-apache
 
-# Enable Apache rewrite module if needed
-RUN a2enmod rewrite
+# Fix multiple MPM loaded error
+RUN a2dismod mpm_event && a2enmod mpm_prefork
 
-# Copy all backend code into the container
+# Copy project files into Apache root
 COPY . /var/www/html/
 
 # Expose HTTP port
