@@ -6,18 +6,12 @@ if (!headers_sent()) {
 }
 
 try {
-    // Fetch campaigns
-    $campaignStmt = $conn->query("SELECT id, title, raised, goal, progress FROM campaigns");
+    // Select the actual column names from your Byethost schema
+    $campaignStmt = $conn->query("SELECT id, title, description, target_amount, raised_amount, image_url, created_at FROM campaigns");
     $campaigns = $campaignStmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Fetch total given donations
-    $donationStmt = $conn->query("SELECT SUM(amount) AS total_donated FROM given_donations");
-    $donationResult = $donationStmt->fetch(PDO::FETCH_ASSOC);
-    $totalDonated = $donationResult['total_donated'] ? (float)$donationResult['total_donated'] : 0.00;
 
     echo json_encode([
         "success" => true,
-        "total_donated" => $totalDonated,
         "campaigns" => $campaigns
     ]);
 } catch (PDOException $e) {
