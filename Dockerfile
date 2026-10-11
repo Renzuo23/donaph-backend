@@ -1,5 +1,10 @@
-FROM php:8.2-cli
-WORKDIR /app
-COPY . .
-EXPOSE 8080
-CMD php -S 0.0.0.0:${PORT:-8080} -t .
+FROM php:8.2-apache
+
+# Enable Apache rewrite module if needed
+RUN a2enmod rewrite
+
+# Copy all backend code into the container
+COPY . /var/www/html/
+
+# Expose HTTP port
+EXPOSE 80
