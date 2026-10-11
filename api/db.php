@@ -1,9 +1,9 @@
 <?php
-$host = "your_aiven_host";
-$port = "your_port";
+$host = "mysql-be91e57-donaph.g.aivencloud.com";
+$port = "17537";
 $username = "avnadmin";
 $password = getenv('DB_PASSWORD');
-$dbname = "your_database_name";
+$dbname = "defaultdb";
 
 $conn = mysqli_init();
 
