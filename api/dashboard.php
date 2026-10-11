@@ -1,37 +1,29 @@
 <?php
-header('Content-Type: application/json');
-include 'db.php'; // Now returns a PDO instance
+require_once 'db.php';
 
-$user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
-$response = array();
-
-if ($user_id <= 0) {
-    echo json_encode(["success" => false, "message" => "Invalid User ID"]);
-    exit();
+if (!headers_sent()) {
+    header('Content-Type: application/json');
 }
 
-// 1. Total Donations
-$stmt = $conn->prepare("SELECT SUM(amount) as total FROM given_donations WHERE user_id = ?");
-$stmt->execute([$user_id]);
-$donationRow = $stmt->fetch();
-$totalAmount = $donationRow['total'] ? $donationRow['total'] : 0;
-$formattedDonation = "₱" . number_format($totalAmount, 2);
+try {
+    // Fetch campaigns
+    $campaignStmt = $conn->query("SELECT id, title, raised, goal, progress FROM campaigns");
+    $campaigns = $campaignStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 2. User Impact
-$stmtImpact = $conn->prepare("SELECT COUNT(DISTINCT charity_id) as communities FROM given_donations WHERE user_id = ?");
-$stmtImpact->execute([$user_id]);
-$impactRow = $stmtImpact->fetch();
-$communitiesCount = $impactRow['communities'] ? $impactRow['communities'] : 0;
-$formattedImpact = "Helped " . $communitiesCount . " Communities";
+    // Fetch total given donations
+    $donationStmt = $conn->query("SELECT SUM(amount) AS total_donated FROM given_donations");
+    $donationResult = $donationStmt->fetch(PDO::FETCH_ASSOC);
+    $totalDonated = $donationResult['total_donated'] ? (float)$donationResult['total_donated'] : 0.00;
 
-// 3. Campaigns
-$campResult = $conn->query("SELECT title, raised, goal, progress FROM campaigns");
-$campaigns = $campResult->fetchAll();
-
-$response['success'] = true;
-$response['total_donation'] = $formattedDonation;
-$response['impact'] = $formattedImpact;
-$response['campaigns'] = $campaigns;
-
-echo json_encode($response);
+    echo json_encode([
+        "success" => true,
+        "total_donated" => $totalDonated,
+        "campaigns" => $campaigns
+    ]);
+} catch (PDOException $e) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Query failed: " . $e->getMessage()
+    ]);
+}
 ?>
