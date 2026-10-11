@@ -1,102 +1,60 @@
 <?php
-ob_start();
+require_once 'db.php';
 
-http_response_code(200);
-header('Content-Type: application/json; charset=utf-8');
-
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-
-// ==============================================================================
-// 1. DATABASE CONFIGURATION
-// ==============================================================================
-$host = "mysql-be91e57-donaph.g.aivencloud.com";
-$user = "avnadmin";
-$pass = getenv('DB_PASSWORD');
-$dbname = "defaultdb";
-
-$conn = @new mysqli($host, $user, $pass, $dbname);
-
-if ($conn->connect_error) {
-    ob_end_clean();
-    echo json_encode([
-        "success" => false, 
-        "message" => "Database connection failed: " . $conn->connect_error
-    ]);
-    exit();
+if (!headers_sent()) {
+    header('Content-Type: application/json');
 }
 
-$conn->set_charset("utf8mb4");
+// Ensure the request method is POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Invalid request method. Please use POST."
+    ]);
+    exit;
+}
 
-// ==============================================================================
-// 2. READ INPUT DATA (Handles both Form-Data and JSON)
-// ==============================================================================
-$jsonInput = file_get_contents('php://input');
-$data = json_decode($jsonInput, true);
-
-// Fallback to $_POST if JSON body is empty
-$email = trim($_POST['email'] ?? $data['email'] ?? '');
-$password = trim($_POST['password'] ?? $data['password'] ?? '');
+// Read raw JSON input or form data
+$input = json_decode(file_get_contents('php://input'), true);
+$email = $input['email'] ?? $_POST['email'] ?? '';
+$password = $input['password'] ?? $_POST['password'] ?? '';
 
 if (empty($email) || empty($password)) {
-    ob_end_clean();
     echo json_encode([
-        "success" => false, 
-        "message" => "Please enter both email and password"
+        "success" => false,
+        "message" => "Email and password are required."
     ]);
-    exit();
+    exit;
 }
 
-// ==============================================================================
-// 3. AUTHENTICATION LOGIC
-// ==============================================================================
-$stmt = $conn->prepare("SELECT id, full_name, email, phone_number, role, password FROM users WHERE email = ? LIMIT 1");
+try {
+    // Query user by email matching your table schema
+    $stmt = $conn->prepare("SELECT id, full_name, email, password, role, total_donations, impact_status FROM users WHERE email = :email LIMIT 1");
+    $stmt->execute([':email' => $email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$stmt) {
-    ob_end_clean();
-    echo json_encode([
-        "success" => false, 
-        "message" => "Database query error: " . $conn->error
-    ]);
-    exit();
-}
+    // Verify credentials
+    // Note: For plain-text passwords in legacy data like '123456', check direct equality.
+    // If using password_hash(), use password_verify($password, $user['password']).
+    if ($user && ($password === $user['password'] || password_verify($password, $user['password']))) {
+        // Omit sensitive password hash from response
+        unset($user['password']);
 
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if ($row = $result->fetch_assoc()) {
-    $storedPassword = $row['password'] ?? '';
-
-    if (password_verify($password, $storedPassword) || $password === $storedPassword) {
-        $token = bin2hex(random_bytes(16));
-
-        ob_end_clean();
         echo json_encode([
             "success" => true,
             "message" => "Login successful",
-            "token" => $token,
-            "user" => [
-                "id" => (int)$row['id'],
-                "full_name" => $row['full_name'],
-                "email" => $row['email'],
-                "phone_number" => $row['phone_number'],
-                "role" => $row['role']
-            ]
+            "user" => $user
         ]);
-        $stmt->close();
-        $conn->close();
-        exit();
+    } else {
+        echo json_encode([
+            "success" => false,
+            "message" => "Invalid email or password."
+        ]);
     }
+} catch (PDOException $e) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Database query failed: " . $e->getMessage()
+    ]);
 }
-
-ob_end_clean();
-echo json_encode([
-    "success" => false, 
-    "message" => "Invalid email or password"
-]);
-
-$stmt->close();
-$conn->close();
-exit();
 ?>
