@@ -1,10 +1,5 @@
-FROM php:8.2-apache
-
-# Fix multiple MPM loaded error
-RUN a2dismod mpm_event && a2enmod mpm_prefork
-
-# Copy project files into Apache root
-COPY . /var/www/html/
-
-# Expose HTTP port
-EXPOSE 80
+FROM php:8.2-cli
+WORKDIR /app
+COPY . .
+EXPOSE 8080
+CMD php -S 0.0.0.0:${PORT:-8080} -t .
