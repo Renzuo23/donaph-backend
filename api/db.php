@@ -1,4 +1,8 @@
 <?php
+// Suppress warning output from breaking JSON headers
+ini_set('display_errors', 0);
+error_reporting(0);
+
 $host = "mysql-be91e57-donaph.g.aivencloud.com";
 $port = "17537";
 $username = "avnadmin";
@@ -11,7 +15,6 @@ $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::MYSQL_ATTR_SSL_CA => __DIR__ . '/ca.pem',
-    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
 ];
 
 try {
